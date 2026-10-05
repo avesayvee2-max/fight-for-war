@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Fight for War — Wave Assault</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0b1114;font-family:Arial,sans-serif;touch-action:none}
+body{display:flex;align-items:center;justify-content:center}
+#game{width:100vw;height:100vh;display:block}
+#hud{position:fixed;inset:0;pointer-events:none;color:#fff;text-shadow:0 2px 3px #000;font-weight:800}
+.panel{background:linear-gradient(#071019ee,#03080ce8);border:2px solid #26333b;border-radius:14px;box-shadow:0 5px 16px #0009}
+#pause{position:absolute;left:14px;top:10px;width:70px;height:70px;border-radius:18px;font-size:34px;display:flex;align-items:center;justify-content:center}
+#health{position:absolute;left:112px;top:15px;width:385px;height:42px;border-radius:12px;padding:5px 10px;display:flex;align-items:center;gap:8px}
+#health .heart{font-size:29px;color:#ff3345}
+#healthbar{height:23px;flex:1;background:#10171a;border-radius:8px;overflow:hidden}
+#healthfill{height:100%;width:100%;background:linear-gradient(#ff343f,#df1727);transition:width .15s}
+#hptext{font-size:22px;min-width:76px;text-align:center}
+#ammo{position:absolute;left:112px;top:64px;width:180px;height:45px;display:flex;align-items:center;justify-content:center;font-size:22px}
+#wave{position:absolute;top:10px;left:50%;transform:translateX(-50%);min-width:305px;height:80px;text-align:center;padding:9px 22px}
+#wave strong{display:block;color:#ffd83d;font-size:29px}
+#wave small{font-size:16px}
+#coins{position:absolute;right:135px;top:15px;height:52px;min-width:150px;padding:7px 18px;display:flex;align-items:center;justify-content:center;font-size:25px}
+#bag{position:absolute;right:18px;top:12px;width:70px;height:58px;text-align:center;font-size:32px;padding-top:9px}
+#objective{position:absolute;left:15px;top:125px;width:310px;padding:13px 16px}
+#objective b{color:#ffd72e;font-size:19px;display:block;margin-bottom:5px}
+#objective span{font-size:16px;line-height:1.35}
+#minimap{position:absolute;right:18px;top:85px;width:190px;height:145px;padding:5px;border-radius:22px;overflow:hidden}
+#mini{width:180px;height:135px;border-radius:17px}
+#items{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:12px}
+.item{width:105px;height:60px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:22px}
+#score{position:absolute;right:18px;bottom:10px;width:300px;height:60px;padding:13px 20px;text-align:center;font-size:25px}
+#controls{position:fixed;inset:0;pointer-events:none}
+#stick{position:absolute;left:28px;bottom:28px;width:180px;height:180px;border-radius:50%;background:#071017b8;border:3px solid #87939a;pointer-events:auto}
+#stick:before,#stick:after{content:"";position:absolute;background:#dfe5e7;opacity:.9}
+#stick:before{width:14px;height:14px;left:83px;top:14px;clip-path:polygon(50% 0,100% 100%,0 100%)}
+#stick:after{width:14px;height:14px;left:83px;bottom:14px;clip-path:polygon(0 0,100% 0,50% 100%)}
+#knob{position:absolute;left:52px;top:52px;width:76px;height:76px;border-radius:50%;background:#68737b;border:2px solid #bfc6ca}
+#fire,#aim,#boost{position:absolute;pointer-events:auto;border-radius:50%;background:#071017d9;border:3px solid #b8c0c3;color:#fff;display:flex;align-items:center;justify-content:center}
+#fire{right:25px;bottom:28px;width:145px;height:145px;font-size:58px}
+#aim{right:31px;bottom:190px;width:94px;height:94px;font-size:42px}
+#boost{right:166px;bottom:28px;width:102px;height:102px;font-size:35px}
+#message{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0009;z-index:10}
+.dialog{width:min(90vw,470px);padding:28px;text-align:center;border-radius:22px;background:linear-gradient(#17252c,#081015);border:2px solid #56646c;box-shadow:0 12px 40px #000}
+.dialog h1{margin:0 0 8px;font-size:42px}.dialog p{color:#d6dde0}.dialog button{border:0;border-radius:13px;background:#ffd83d;padding:14px 32px;font-size:20px;font-weight:900}
+.hidden{display:none!important}
+@media(max-width:900px) and (orientation:portrait){body:before{content:"Rotate your phone to landscape";position:fixed;z-index:99;inset:0;background:#091014;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;text-align:center;padding:30px}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div id="pause" class="panel">Ⅱ</div>
+  <div id="health" class="panel"><span class="heart">♥</span><div id="healthbar"><div id="healthfill"></div></div><span id="hptext">100/100</span></div>
+  <div id="ammo" class="panel">🔫 <span id="ammotext">12/30</span></div>
+  <div id="wave" class="panel"><strong>☠ WAVE <span id="wavenum">1</span>/5</strong><small>Enemies Left: <span id="enemycount">8</span></small></div>
+  <div id="coins" class="panel">🪙 <span id="cointext">0</span></div>
+  <div id="bag" class="panel">🎒</div>
+  <div id="objective" class="panel"><b>🎯 OBJECTIVE</b><span>Survive the waves and be the last stickman!</span></div>
+  <div id="minimap" class="panel"><canvas id="mini" width="180" height="135"></canvas></div>
+  <div id="items">
+    <div class="item panel">❤️ <b id="meds">1</b></div>
+    <div class="item panel">🔷 <b id="ammopack">1</b></div>
+    <div class="item panel">⚡ <b id="boostpack">1</b></div>
+  </div>
+  <div id="score" class="panel">Score: <span id="scoretext">0</span></div>
+</div>
+
+<div id="controls">
+  <div id="stick"><div id="knob"></div></div>
+  <button id="boost">⚡</button>
+  <button id="aim">⌖</button>
+  <button id="fire">➤</button>
+</div>
+
+<div id="message">
+  <div class="dialog">
+    <h1>FIGHT FOR WAR</h1>
+    <p>Wave assault — survive all 5 waves.</p>
+    <button id="start">START BATTLE</button>
+  </div>
+</div>
+
+<script>
+const canvas=document.getElementById("game"),ctx=canvas.getContext("2d");
+const mini=document.getElementById("mini"),mctx=mini.getContext("2d");
+let W=innerWidth,H=innerHeight,dpr=1,last=0,playing=false,paused=false;
+let score=0,coins=0,wave=1,spawnTimer=0,spawned=0,elapsed=0,reloading=false,reloadTimer=0;
+const input={x:0,y:0,fire:false,boost:false,aimX:0,aimY:0};
+const player={x:0,y:0,r:17,hp:100,maxHp:100,speed:240,ammo:12,maxAmmo:30,cool:0,boost:100,vx:0,vy:0,angle:0};
+let enemies=[],bullets=[],pickups=[],particles=[],trees=[],rocks=[],crates=[];
+
+function resize(){dpr=Math.min(devicePixelRatio||1,1.5);W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}
+addEventListener("resize",resize);resize();
+
+function reset(){
+ player.x=W*.5;player.y=H*.56;player.hp=100;player.ammo=12;player.cool=0;player.boost=100;player.vx=0;player.vy=0;player.angle=0;
+ score=0;coins=0;wave=1;spawnTimer=.2;spawned=0;elapsed=0;enemies=[];bullets=[];pickups=[];particles=[];
+ trees=[];rocks=[];crates=[];
+ for(let i=0;i<16;i++) trees.push({x:40+Math.random()*(W-80),y:70+Math.random()*(H-150),s:.7+Math.random()*.8});
+ for(let i=0;i<13;i++) rocks.push({x:30+Math.random()*(W-60),y:110+Math.random()*(H-170),s:.6+Math.random()*.9});
+ for(let i=0;i<8;i++) crates.push({x:80+Math.random()*(W-160),y:120+Math.random()*(H-200),s:.7+Math.random()*.7});
+ for(let i=0;i<8;i++)spawnEnemy();
+}
+
+function spawnEnemy(){
+ const side=Math.floor(Math.random()*4);let x,y;
+ if(side===0){x=Math.random()*W;y=85}else if(side===1){x=W-40;y=100+Math.random()*(H-170)}
+ else if(side===2){x=Math.random()*W;y=H-100}else{x=40;y=100+Math.random()*(H-170)}
+ enemies.push({x,y,r:16,hp:55+wave*8,maxHp:55+wave*8,speed:45+Math.random()*28+wave*4,hit:0});
+ spawned++;
+}
+function spawnPickup(x,y){
+ const types=["med","ammo","boost","coin"],type=types[Math.floor(Math.random()*types.length)];
+ pickups.push({x,y,type,r:15,life:12});
+}
+function startReload(){
+ if(reloading || player.ammo>=player.maxAmmo)return;
+ reloading=true;
+ reloadTimer=0.85;
+}
+function updateReload(dt){
+ if(!reloading && player.ammo<=0) startReload();
+ if(reloading){
+  reloadTimer-=dt;
+  if(reloadTimer<=0){
+   player.ammo=player.maxAmmo;
+   reloading=false;
+  }
+ }
+}
+function shoot(){
+ if(!playing||paused||reloading||player.cool>0)return; if(player.ammo<=0){startReload();return;}
+ player.cool=.18;player.ammo--; if(player.ammo===0)startReload();
+ const a=player.angle;
+ bullets.push({x:player.x+Math.cos(a)*20,y:player.y+Math.sin(a)*20,vx:Math.cos(a)*720,vy:Math.sin(a)*720,life:1.2,r:4});
+}
+function burst(x,y,good=false){
+ for(let i=0;i<12;i++){const a=Math.random()*Math.PI*2;particles.push({x,y,vx:Math.cos(a)*(60+Math.random()*100),vy:Math.sin(a)*(60+Math.random()*100),life:.5+Math.random()*.4,good})}
+}
+function update(dt){
+ if(paused)return;
+ elapsed+=dt;
+ wave=Math.min(5,1+Math.floor(elapsed/28));
+ player.cool=Math.max(0,player.cool-dt); updateReload(dt);
+ player.boost=Math.min(100,player.boost+8*dt);
+ let sp=player.speed;
+ if(input.boost&&player.boost>0){sp*=1.8;player.boost-=42*dt}
+ // Accelerate toward the joystick direction, then smoothly slow down when released.
+ const targetVX=input.x*sp, targetVY=input.y*sp;
+ const accel=1550, friction=1250;
+ const blend=(v,t,a)=>Math.abs(t-v)<a*dt?t:v+Math.sign(t-v)*a*dt;
+ player.vx=blend(player.vx,targetVX, input.x||input.y ? accel : friction);
+ player.vy=blend(player.vy,targetVY, input.x||input.y ? accel : friction);
+ player.x=Math.max(35,Math.min(W-35,player.x+player.vx*dt));
+ player.y=Math.max(80,Math.min(H-90,player.y+player.vy*dt));
+ // Face the direction the player is actually moving.
+ const moveMag=Math.hypot(player.vx,player.vy);
+ if(moveMag>18) player.angle=Math.atan2(player.vy,player.vx);
+
+ // Keep the player from sticking to screen edges.
+ if(player.x<=35||player.x>=W-35)player.vx*=.25;
+ if(player.y<=80||player.y>=H-90)player.vy*=.25;
+
+ // Automatic shooting: bullets always travel in the direction the player faces.
+ if(moveMag>18) input.aimX=player.x+Math.cos(player.angle)*300;
+ if(moveMag>18) input.aimY=player.y+Math.sin(player.angle)*300;
+ if(moveMag>18) shoot();
+
+ spawnTimer-=dt;
+ if(spawnTimer<=0 && enemies.length<Math.min(16,7+wave*2)){spawnTimer=Math.max(.38,1.05-wave*.1);spawnEnemy()}
+ if(input.aimX===0)input.aimX=player.x+100;
+
+ for(const b of bullets){b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt}
+ bullets=bullets.filter(b=>b.life>0&&b.x>-30&&b.x<W+30&&b.y>-30&&b.y<H+30);
+
+ for(const e of enemies){
+  const dx=player.x-e.x,dy=player.y-e.y,d=Math.hypot(dx,dy)||1;
+  e.x+=dx/d*e.speed*dt;e.y+=dy/d*e.speed*dt;e.hit=Math.max(0,e.hit-dt);
+  if(d<e.r+player.r){player.hp-=18*dt}
+ }
+ for(let i=enemies.length-1;i>=0;i--){
+  let e=enemies[i],dead=false;
+  for(let j=bullets.length-1;j>=0;j--){
+   const b=bullets[j];
+   if(Math.hypot(b.x-e.x,b.y-e.y)<b.r+e.r){
+    e.hp-=28;bullets.splice(j,1);burst(b.x,b.y,true);
+    if(e.hp<=0){dead=true;score+=25+wave*5;coins+=1;if(Math.random()<.28)spawnPickup(e.x,e.y);burst(e.x,e.y)}
+    break;
+   }
+  }
+  if(dead)enemies.splice(i,1);
+ }
+ for(let i=pickups.length-1;i>=0;i--){
+  const p=pickups[i];p.life-=dt;
+  if(Math.hypot(player.x-p.x,player.y-p.y)<player.r+p.r){
+   if(p.type==="med")player.hp=Math.min(100,player.hp+30);
+   if(p.type==="ammo")player.ammo=player.maxAmmo;
+   if(p.type==="boost")player.boost=100;
+   if(p.type==="coin"){coins+=5;score+=100}
+   burst(p.x,p.y,true);pickups.splice(i,1);
+  } else if(p.life<=0)pickups.splice(i,1);
+ }
+ for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}
+ particles=particles.filter(p=>p.life>0);
+
+ if(player.hp<=0)gameOver(false);
+ if(elapsed>140 && enemies.length<=1)gameOver(true);
+}
+
+function drawStick(x,y,s,color,enemy=false){
+ ctx.save();ctx.translate(x,y);
+ ctx.fillStyle="rgba(0,0,0,.24)";ctx.beginPath();ctx.ellipse(0,27*s,17*s,5*s,0,0,Math.PI*2);ctx.fill();
+ ctx.strokeStyle=color;ctx.lineWidth=5*s;ctx.lineCap="round";
+ ctx.fillStyle=color;ctx.beginPath();ctx.arc(0,-13*s,8*s,0,Math.PI*2);ctx.fill();
+ ctx.beginPath();ctx.moveTo(0,-5*s);ctx.lineTo(0,13*s);ctx.stroke();
+ ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-12*s,7*s);ctx.moveTo(0,0);ctx.lineTo(12*s,5*s);ctx.stroke();
+ ctx.beginPath();ctx.moveTo(0,13*s);ctx.lineTo(-9*s,26*s);ctx.moveTo(0,13*s);ctx.lineTo(9*s,26*s);ctx.stroke();
+ if(enemy){ctx.fillStyle="#ff2437";ctx.beginPath();ctx.arc(-3*s,-14*s,2*s,0,Math.PI*2);ctx.arc(3*s,-14*s,2*s,0,Math.PI*2);ctx.fill()}
+ else{
+   ctx.save();ctx.rotate(player.angle);
+   ctx.strokeStyle="#1b2429";ctx.lineWidth=4*s;ctx.beginPath();
+   ctx.moveTo(9*s,5*s);ctx.lineTo(30*s,5*s);ctx.stroke();
+   ctx.fillStyle="#ffb21b";ctx.beginPath();ctx.arc(31*s,5*s,3*s,0,Math.PI*2);ctx.fill();
+   ctx.restore();
+ }
+ ctx.restore();
+}
+function tree(x,y,s){ctx.fillStyle="#704629";ctx.fillRect(x-5*s,y,10*s,28*s);ctx.fillStyle="#2c7338";ctx.beginPath();ctx.arc(x,y,25*s,0,Math.PI*2);ctx.fill();ctx.fillStyle="#4b963e";ctx.beginPath();ctx.arc(x-13*s,y-7*s,17*s,0,Math.PI*2);ctx.arc(x+13*s,y-8*s,17*s,0,Math.PI*2);ctx.fill()}
+function draw(){
+ ctx.clearRect(0,0,W,H);
+ // grass
+ ctx.fillStyle="#72a84d";ctx.fillRect(0,0,W,H);
+ for(let x=0;x<W;x+=34)for(let y=65;y<H;y+=30){if(((x*7+y*3)%11)>5){ctx.fillStyle="#5d9344";ctx.fillRect(x,y,2,8)}}
+ // industrial base + road
+ ctx.fillStyle="#555c5f";ctx.fillRect(0,H*.67,W,H*.33);
+ ctx.fillStyle="#a98050";ctx.beginPath();ctx.moveTo(W*.12,H);ctx.lineTo(W*.34,H*.42);ctx.lineTo(W*.72,H*.42);ctx.lineTo(W*.9,H);ctx.closePath();ctx.fill();
+ // blue and red containers
+ ctx.fillStyle="#2774a9";ctx.fillRect(30,105,260,150);ctx.strokeStyle="#174a70";ctx.lineWidth=6;ctx.strokeRect(30,105,260,150);
+ ctx.fillStyle="#a9442d";ctx.fillRect(W-300,H-205,260,125);ctx.strokeStyle="#713021";ctx.strokeRect(W-300,H-205,260,125);
+ // fence
+ ctx.strokeStyle="#4b5557";ctx.lineWidth=5;for(let x=0;x<W;x+=70){ctx.beginPath();ctx.moveTo(x,65);ctx.lineTo(x,155);ctx.stroke()}ctx.beginPath();ctx.moveTo(0,105);ctx.lineTo(W,105);ctx.stroke();
+ trees.forEach(t=>tree(t.x,t.y,t.s));
+ rocks.forEach(r=>{ctx.fillStyle="#737b78";ctx.beginPath();ctx.ellipse(r.x,r.y,26*r.s,17*r.s,-.2,0,Math.PI*2);ctx.fill()});
+ crates.forEach(c=>{ctx.fillStyle="#9b622e";ctx.fillRect(c.x,c.y,34*c.s,30*c.s);ctx.strokeStyle="#5e381b";ctx.lineWidth=3;ctx.strokeRect(c.x,c.y,34*c.s,30*c.s);});
+ // pickups
+ for(const p of pickups){
+  const c=p.type==="med"?"#49ed71":p.type==="ammo"?"#3a9cff":p.type==="boost"?"#ffd42e":"#ffc229";
+  ctx.shadowBlur=18;ctx.shadowColor=c;ctx.fillStyle=c;ctx.beginPath();ctx.roundRect(p.x-17,p.y-17,34,34,8);ctx.fill();ctx.shadowBlur=0;
+  ctx.fillStyle="#fff";ctx.font="bold 22px Arial";ctx.textAlign="center";ctx.fillText(p.type==="med"?"+":p.type==="ammo"?"▥":p.type==="boost"?"ϟ":"$",p.x,p.y+8);
+ }
+ for(const b of bullets){ctx.strokeStyle="#ffd43d";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(b.x,b.y);ctx.lineTo(b.x-b.vx*.025,b.y-b.vy*.025);ctx.stroke();ctx.fillStyle="#fff2a0";ctx.beginPath();ctx.arc(b.x,b.y,4,0,Math.PI*2);ctx.fill()}
+ for(const e of enemies){
+  drawStick(e.x,e.y,1.02,"#080d0f",true);
+  ctx.fillStyle="#171b1c";ctx.fillRect(e.x-17,e.y-39,34,5);ctx.fillStyle="#f33b3b";ctx.fillRect(e.x-17,e.y-39,34*Math.max(0,e.hp/e.maxHp),5);
+ }
+ ctx.save();
+ ctx.translate(player.x,player.y);
+ ctx.rotate(player.angle);
+ ctx.translate(-player.x,-player.y);
+ drawStick(player.x,player.y,1.12,"#080d0f",false);
+ ctx.restore();
+ for(const p of particles){ctx.globalAlpha=Math.max(0,p.life*2);ctx.fillStyle=p.good?"#ffe06b":"#ff5748";ctx.fillRect(p.x,p.y,4,4)}ctx.globalAlpha=1;
+
+ // minimap
+ mctx.clearRect(0,0,180,135);mctx.fillStyle="#284d2e";mctx.fillRect(0,0,180,135);
+ mctx.fillStyle="#9d7948";mctx.fillRect(30,54,120,34);
+ mctx.fillStyle="#2e9eff";mctx.beginPath();mctx.arc(player.x/W*180,player.y/H*135,4,0,Math.PI*2);mctx.fill();
+ mctx.fillStyle="#ef3340";for(const e of enemies){mctx.beginPath();mctx.arc(e.x/W*180,e.y/H*135,3,0,Math.PI*2);mctx.fill()}
+
+ document.getElementById("hptext").textContent=Math.max(0,Math.ceil(player.hp))+"/100";
+ document.getElementById("healthfill").style.width=Math.max(0,player.hp)+"%";
+ document.getElementById("ammotext").textContent=reloading?"RELOADING…":player.ammo+"/"+player.maxAmmo;
+ document.getElementById("wavenum").textContent=wave;
+ document.getElementById("enemycount").textContent=enemies.length;
+ document.getElementById("cointext").textContent=coins;
+ document.getElementById("scoretext").textContent=score.toLocaleString();
+ document.getElementById("boostpack").textContent=Math.max(0,Math.ceil(player.boost/100));
+}
+function gameOver(win){
+ playing=false;document.getElementById("message").classList.remove("hidden");
+ document.querySelector(".dialog h1").textContent=win?"VICTORY!":"ELIMINATED";
+ document.querySelector(".dialog p").textContent=win?"You survived the battle. Score: "+score:"You were eliminated. Score: "+score;
+ document.getElementById("start").textContent="PLAY AGAIN";
+}
+function loop(t){const dt=Math.min(.035,(t-last)/1000||0);last=t;if(playing)update(dt);draw();requestAnimationFrame(loop)}
+
+document.getElementById("start").onclick=()=>{reset();playing=true;paused=false;document.getElementById("message").classList.add("hidden")};
+document.getElementById("pause").onclick=()=>{if(playing){paused=!paused;document.getElementById("pause").textContent=paused?"▶":"Ⅱ"}};
+document.getElementById("fire").onpointerdown=e=>{e.preventDefault();input.fire=true;shoot()};
+document.getElementById("fire").onpointerup=()=>input.fire=false;
+document.getElementById("boost").onpointerdown=()=>input.boost=true;
+document.getElementById("boost").onpointerup=()=>input.boost=false;
+document.getElementById("aim").onpointerdown=()=>shoot();
+canvas.onpointermove=e=>{};
+canvas.onpointerdown=e=>{shoot()};
+
+const stick=document.getElementById("stick"),knob=document.getElementById("knob");let active=false;
+function moveStick(e){const r=stick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=e.clientX-cx,dy=e.clientY-cy,d=Math.hypot(dx,dy)||1,m=55;if(d>m){dx=dx/d*m;dy=dy/d*m}input.x=dx/m;input.y=dy/m;const mag=Math.hypot(input.x,input.y)||1;if(mag>1){input.x/=mag;input.y/=mag}knob.style.transform=`translate(${dx}px,${dy}px)`}
+stick.onpointerdown=e=>{active=true;stick.setPointerCapture(e.pointerId);moveStick(e)};stick.onpointermove=e=>{if(active)moveStick(e)};stick.onpointerup=()=>{active=false;input.x=input.y=0;knob.style.transform=""};
+stick.onpointercancel=()=>{active=false;input.x=input.y=0;knob.style.transform=""};
+addEventListener("keydown",e=>{if(e.key==="w"||e.key==="ArrowUp")input.y=-1;if(e.key==="s"||e.key==="ArrowDown")input.y=1;if(e.key==="a"||e.key==="ArrowLeft")input.x=-1;if(e.key==="d"||e.key==="ArrowRight")input.x=1;if(e.key==="r")startReload();if(e.code==="Space"){input.fire=true;shoot()}if(e.key==="Shift")input.boost=true});
+addEventListener("keyup",e=>{if(["w","ArrowUp","s","ArrowDown"].includes(e.key))input.y=0;if(["a","ArrowLeft","d","ArrowRight"].includes(e.key))input.x=0;if(e.code==="Space")input.fire=false;if(e.key==="Shift")input.boost=false});
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
